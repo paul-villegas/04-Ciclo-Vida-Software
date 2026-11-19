@@ -1,0 +1,63 @@
+name: Pipeline CI CD Completo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  integracion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Verificar archivos
+        run: |
+          test -f index.html
+          test -f Dockerfile
+          echo "Archivos verificados correctamente"
+
+      - name: Construir imagen Docker
+        run: docker build -t mi-aplicacion .
+
+      - name: Ejecutar contenedor
+        run: docker run -d -p 8080:80 --name web mi-aplicacion
+
+      - name: Probar aplicacion
+        run: |
+          sleep 5
+          curl --fail http://localhost:8080
+          echo "Prueba completada correctamente"
+
+      - name: Preparar pagina
+        run: |
+          mkdir public
+          cp index.html public/
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir pagina
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  despliegue:
+    needs: integracion
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Publicar pagina web
+        id: deployment
+        uses: actions/deploy-pages@v4
